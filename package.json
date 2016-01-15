@@ -1,0 +1,7 @@
+{
+    "name": "pstream",
+    "main": "server.js",
+    "dependencies": {
+        "mongoose": "*"
+    }
+}
