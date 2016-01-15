@@ -3,21 +3,26 @@
 //======
 const fs = require('fs');
 const net = require('net');
+const exec = require('child_process').exec;
+const encryption = require('./encrypt.js');
 const EventEmitter = require('events').EventEmitter;
 
 //========
 // Globals
 //========
 // my connection info
-var PORT = 8081;
+var PORT = parseInt(process.argv[2]) || 8081;
 var HOST = '127.0.0.1';
 // peer table server connection info
 var HOST_ADDRESS = '127.0.0.1';
 var HOST_PORT = 8080;
 var COMMANDS = ['list-peers', 'register'];
 // temp
-var TEST_PEER_ADDRESS = 'http://ec2-52-33-47-32.us-west-2.compute.amazonaws.com/';
-var TEST_PEER_PORT = 8081;
+/* var TEST_PEER_ADDRESS = 'http://ec2-52-33-47-32.us-west-2.compute.amazonaws.com/'; */
+var TEST_PEER_ADDRESS = '127.0.0.1';
+var TEST_PEER_PORT = PORT == 8081 ? 8082 : 8081;
+console.log('Me: ', PORT); 
+console.log('Peer: ', TEST_PEER_PORT); 
 
 //=======================
 // Command Line Interface
@@ -35,7 +40,8 @@ CommandInterface.prototype.start = function() {
     process.stdin.on('readable', () => {
         var chunk = process.stdin.read();
         if (!chunk) return;
-        var command = chunk.trim();
+        var params = chunk.trim().split(',');
+        var command = params[0];
         // peer table commands
         if (command == 'list-peers') {
             this.peerTable.listPeers(function(peers) {
@@ -44,7 +50,12 @@ CommandInterface.prototype.start = function() {
         } 
         // requester commands
         else if (command == 'content') {
-            this.requester.getContent(TEST_PEER_ADDRESS, TEST_PEER_PORT);
+            this.requester.getContent({ip: TEST_PEER_ADDRESS, port: TEST_PEER_PORT}, function(content) {
+                process.stdout.write(content + '> ');
+            });
+        }
+        else if (command == 'stream') {
+            this.requester.getStream({ip: TEST_PEER_ADDRESS, port: TEST_PEER_PORT}, params[1]);
         }
         else {
             process.stdout.write('> ');
@@ -66,7 +77,8 @@ function Server(host, port) {
             request += chunk;
             //\n carriage return
             if (request.indexOf('\n') == -1) return;
-            var command = request.split('\n')[0];
+            var params = request.split('\n')[0].split(','); 
+            var command = params[0];
             request = request.split('\n').slice(1).join('\n');
             if (command == 'content') {
                 fs.readdir('./shared', function(err, items) {
@@ -74,8 +86,19 @@ function Server(host, port) {
                     items.forEach(function(item) {
                         response += item + '\n';
                     });
-                    sock.write(respose);
+                    sock.write(response);
+                    sock.destroy();
                 });
+            }
+            else if (command == 'stream') {
+                var media = fs.createReadStream('shared/' + params[1]);
+                /* media.pipe(sock); */
+                media.on('data', function(chunk) {
+                    sock.write(chunk);
+                })
+                /* media.on('end', function () { */
+                /*     sock.destroy(); */
+                /* }) */
             }
         });
     });
@@ -90,15 +113,32 @@ function Requester() {
 
 Requester.prototype.getContent = function(info, callback) {
     this.socket.connect(info.port, info.ip);
-    this.socket.write('content');
+    this.socket.write('content\n');
     var content = '';
-    this.socket.on('data', function hndl(chunk) {
+    var handleData = function(chunk) {
         content += chunk;
-        this.on('end', function hndl1() {
-            this.removeListener('data', 'hndl');
-            this.removeListener('end', 'hndl1');
-            callback(content);
-        });
+    }
+    this.socket.on('data', function(chunk) {
+        handleData(chunk);
+    });
+    this.socket.on('end', function hndl() {
+        this.removeListener('end', hndl);
+        this.removeListener('data', handleData);
+        callback(content);
+    });
+}
+
+Requester.prototype.getStream = function(info, fileName) {
+    this.socket.connect(info.port, info.ip);
+    this.socket.write('stream,' + fileName + '\n');
+    var bufferStream = fs.createWriteStream('buffer/' + fileName);
+    var streamStarted = false;
+    this.socket.on('data', function(chunk) {
+        if (!streamStarted) {
+            streamStarted = true;
+            var child = exec('open ' + 'buffer/' + fileName + ' -a safari');
+        }
+        bufferStream.write(chunk);
     })
 }
 
