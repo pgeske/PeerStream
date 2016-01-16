@@ -11,17 +11,17 @@ const EventEmitter = require('events').EventEmitter;
 // Globals
 //========
 // my connection info
-var PORT = parseInt(process.argv[2]) || 8081;
+var PORT = parseInt(process.argv[2]) || 51413;
 var HOST = '127.0.0.1';
 // peer table server connection info
 var HOST_ADDRESS = '127.0.0.1';
 var HOST_PORT = 8080;
 var COMMANDS = ['list-peers', 'register'];
 // temp
-/* var TEST_PEER_ADDRESS = 'http://ec2-52-33-47-32.us-west-2.compute.amazonaws.com/'; */
-/* var TEST_PEER_PORT = 8083; */
-var TEST_PEER_ADDRESS = '127.0.0.1';
-var TEST_PEER_PORT = PORT == 8081 ? 8082 : 8081;
+var TEST_PEER_ADDRESS = 'http://ec2-52-33-47-32.us-west-2.compute.amazonaws.com';
+var TEST_PEER_PORT = 8083;
+/* var TEST_PEER_ADDRESS = '127.0.0.1'; */
+/* var TEST_PEER_PORT = PORT == 51413 ? 8082 : 51413; */
 console.log('Me: ', PORT); 
 console.log('Peer: ', TEST_PEER_PORT); 
 
@@ -73,7 +73,9 @@ function Server(host, port) {
     this.port = port;
     this.server = net.createServer();
     this.server.listen(this.port, this.host);
+    console.log('Listenging'); 
     this.server.on('connection', function(sock) {
+        console.log('Received connection'); 
         var request = '';
         sock.on('data', function(chunk) {
             request += chunk;
