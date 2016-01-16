@@ -19,6 +19,7 @@ var HOST_PORT = 8080;
 var COMMANDS = ['list-peers', 'register'];
 // temp
 /* var TEST_PEER_ADDRESS = 'http://ec2-52-33-47-32.us-west-2.compute.amazonaws.com/'; */
+/* var TEST_PEER_PORT = 8083; */
 var TEST_PEER_ADDRESS = '127.0.0.1';
 var TEST_PEER_PORT = PORT == 8081 ? 8082 : 8081;
 console.log('Me: ', PORT); 
@@ -56,6 +57,7 @@ CommandInterface.prototype.start = function() {
         }
         else if (command == 'stream') {
             this.requester.getStream({ip: TEST_PEER_ADDRESS, port: TEST_PEER_PORT}, params[1]);
+            process.stdout.write('\n> ');
         }
         else {
             process.stdout.write('> ');
